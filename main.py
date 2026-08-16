@@ -5,13 +5,21 @@ import time
 import asyncio
 import subprocess
 
+class Block:
+    def __init__(self, x:int, y:int):
+        self.y = y
+        self.x = x
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+
 class Schemas(enum.Enum):
-    L = [(2,0),(1,0),(0,0),(0,1)]
-    T = [(2,0),(1,0),(0,0),(1,1)]
-    N = [(0,0),(1,0),(1,1),(2,1)]
-    NR = [(0,0),(0,1),(1,1),(1,2)]
-    Q = [(0,0),(1,0),(1,1),(0,1)]
-    I = [(0,0),(0,1),(0,2),(0,3)]
+    L = [Block(2,0),Block(1,0),Block(0,0),Block(0,1)]
+    T = [Block(2,0),Block(1,0),Block(0,0),Block(1,1)]
+    N = [Block(0,0),Block(1,0),Block(1,1),Block(2,1)]
+    NR = [Block(0,0),Block(0,1),Block(1,1),Block(1,2)]
+    Q = [Block(0,0),Block(1,0),Block(1,1),Block(0,1)]
+    I = [Block(0,0),Block(0,1),Block(0,2),Block(0,3)]
 
 rand_pool = [Schemas.L, Schemas.T, Schemas.N, Schemas.NR, Schemas.Q, Schemas.I]
 
@@ -24,15 +32,15 @@ class Piece:
 
     def rotate(self) -> Piece:
         for block in range(len(self.blocks)):
-            self.blocks[block] = (self.blocks[block][1], -self.blocks[block][0])
+            self.blocks[block].x, self.blocks[block].y = self.blocks[block].y, -self.blocks[block].x
         return self
 
-    def destroy(self) -> list[tuple[int, int]]:
-        return [(x + self.position_x, y + self.position_y) for x, y in self.blocks]
+    def destroy(self) -> list[Block]:
+        return [Block(block.x + self.position_x, block.y + self.position_y) for block in self.blocks]
 
     def clone(self, dx: int, dy:int) -> Piece:
         p = Piece(self.schema)
-        p.blocks = [(block[0], block[1]) for block in self.blocks]
+        p.blocks = [Block(block.x, block.y) for block in self.blocks]
         p.position_y = self.position_y+dy
         p.position_x = self.position_x+dx
         return p
@@ -43,22 +51,36 @@ def new_piece() -> Piece:
 class Board:
     def __init__(self):
         self.piece = new_piece()
-        self.blocks:list[tuple[int, int]] = []
+        self.blocks:list[Block] = []
+
+    def verify(self):
+        check:list[list[Block]] = [[] for i in range(20)]
+        for block in self.blocks:
+            check[block.y].append(block)
+        for i, result in enumerate(check):
+            if len(result) == 9:
+                [self.blocks.remove(block) for block in result]
+                for j in range(i-1, -1, -1):
+                    for k in range(len(check[j])):
+                        check[j][k].y += 1
+
+
 
     def collide(self, piece:Piece)->bool:
         ret = False
         for block in piece.blocks:
-            block = (block[0] + piece.position_x, block[1] + piece.position_y)
+            block = Block(block.x + piece.position_x, block.y + piece.position_y)
             ret = ret or block in self.blocks
-            ret = ret or block[1] == 20
-            ret = ret or block[1] == 0
-            ret = ret or block[0] == 10 
-            ret = ret or block[0] == 0
+            ret = ret or block.y == 20
+            ret = ret or block.y == 0
+            ret = ret or block.x == 10 
+            ret = ret or block.x == 0
         return ret
 
     def fall(self):
         if self.collide(self.piece.clone(0,1)):
             self.blocks.extend(self.piece.destroy())
+            self.verify()
             if self.piece.position_y == 2:
                 self.blocks = []
             self.piece = new_piece()
@@ -69,9 +91,9 @@ class Board:
         print("--"*11)
         display = ["|" + "  "*10 + "|" for i in range(20)]
         for block in self.blocks:
-            display[block[1]] = display[block[1]][:block[0]*2] + "⣿⣿" + display[block[1]][block[0]*2+2:]
+            display[block.y] = display[block.y][:block.x*2] + "⣿⣿" + display[block.y][block.x*2+2:]
         for block in self.piece.destroy():
-            display[block[1]] = display[block[1]][:block[0]*2] + "⣿⣿" + display[block[1]][block[0]*2+2:]
+            display[block.y] = display[block.y][:block.x*2] + "⣿⣿" + display[block.y][block.x*2+2:]
         for line in display:
             print(line)
         print("--"*11)
