@@ -2,6 +2,8 @@
 
 Uma implementação em **Python** do clássico jogo **Tetris**, projetada para ser executada diretamente no terminal de linha de comando.
 
+![](ezgif.com-gif-maker.gif)
+
 ---
 
 ## 📋 Índice
